@@ -1,21 +1,26 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { VEHICLE_MODELS } from '../data/vehicleModels.js';
 
-export default function CadastroReserva({ vagas, salvar }) {
-  const [parametros] = useSearchParams();
-  const navigate = useNavigate();
+const formularioVazio = {
+  placa: '',
+  proprietario: '',
+  apartamento: '',
+  bloco: '',
+  modelo: '',
+  cor: '',
+  vaga: ''
+};
 
-  const [formulario, setFormulario] = useState({
-    placa: '',
-    proprietario: '',
-    apartamento: '',
-    bloco: '',
-    modelo: '',
-    cor: '',
-    vaga: parametros.get('vaga') || ''
-  });
+export default function CadastroReserva({ vagas, salvar, editar, reserva }) {
+  const navigate = useNavigate();
+  const [formulario, setFormulario] = useState(reserva ? { ...reserva } : formularioVazio);
   const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    setFormulario(reserva ? { ...reserva } : formularioVazio);
+    setErro('');
+  }, [reserva]);
 
   function atualizarCampo(evento) {
     const { name, value } = evento.target;
@@ -48,7 +53,10 @@ export default function CadastroReserva({ vagas, salvar }) {
     }
 
     const placaSemTraco = placa.replace('-', '');
-    if (salvar.placas.includes(placaSemTraco)) {
+    const placasExistentes = salvar.placas.filter((item) =>
+      !reserva || item !== reserva.placa.replace('-', '').toUpperCase()
+    );
+    if (placasExistentes.includes(placaSemTraco)) {
       setErro('Já existe uma reserva cadastrada para esta placa.');
       return;
     }
@@ -58,25 +66,33 @@ export default function CadastroReserva({ vagas, salvar }) {
       return;
     }
 
-    const novaReserva = {
-      id: Date.now(),
+    const dadosReserva = {
       ...formulario,
       placa,
       vaga: Number(formulario.vaga)
     };
 
-    salvar.adicionar(novaReserva);
-    console.log('Dados do formulário:', novaReserva);
-    window.alert('Cadastro realizado com sucesso!');
-    navigate('/');
+    if (reserva) {
+      const reservaAtualizada = { ...reserva, ...dadosReserva };
+      editar(reservaAtualizada);
+      console.log('Dados atualizados:', reservaAtualizada);
+      window.alert('Reserva atualizada com sucesso!');
+    } else {
+      const novaReserva = { id: Date.now(), ...dadosReserva };
+      salvar.adicionar(novaReserva);
+      console.log('Dados do formulário:', novaReserva);
+      window.alert('Cadastro realizado com sucesso!');
+    }
+
+    navigate('/cadastradas');
   }
 
   return (
     <section>
       <div className="titulo-pagina">
         <div>
-          <span className="titulo-etiqueta">NOVO REGISTRO</span>
-          <p>Informe os dados do proprietário e do veículo.</p>
+          <span className="titulo-etiqueta">{reserva ? 'EDITAR RESERVA' : 'NOVO REGISTRO'}</span>
+          <p>{reserva ? 'Altere os dados da reserva cadastrada.' : 'Informe os dados do proprietário e do veículo.'}</p>
         </div>
       </div>
 
@@ -138,8 +154,8 @@ export default function CadastroReserva({ vagas, salvar }) {
         </label>
 
         <div className="acoes-formulario">
-          <Link className="botao botao-secundario" to="/">Cancelar</Link>
-          <button className="botao" type="submit">Salvar reserva</button>
+          <Link className="botao botao-secundario" to="/cadastradas">Cancelar</Link>
+          <button className="botao" type="submit">{reserva ? 'Salvar alterações' : 'Salvar reserva'}</button>
         </div>
       </form>
     </section>

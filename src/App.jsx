@@ -1,11 +1,27 @@
 import React, { useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import Menu from './components/Menu.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import ListarVagas from './pages/ListarVagas.jsx';
 import VagasDisponiveis from './pages/VagasDisponiveis.jsx';
 import CadastroReserva from './pages/CadastroReserva.jsx';
 import { listarReservas, listarVagasDisponiveis, salvarReservas } from './services.js';
+
+function EditarReservaRoute({ reservas, vagasParaEdicao, editar, salvar }) {
+  const { id } = useParams();
+  const reserva = reservas.find((item) => String(item.id) === String(id));
+
+  if (!reserva) return <Navigate to="/cadastradas" replace />;
+
+  return (
+    <CadastroReserva
+      vagas={vagasParaEdicao(reserva.id)}
+      salvar={salvar}
+      editar={editar}
+      reserva={reserva}
+    />
+  );
+}
 
 export default function App() {
   const [reservas, setReservas] = useState(listarReservas);
@@ -17,6 +33,14 @@ export default function App() {
     salvarReservas(novasReservas);
   }
 
+  function atualizarReserva(reservaAtualizada) {
+    const novasReservas = reservas.map((reserva) =>
+      reserva.id === reservaAtualizada.id ? reservaAtualizada : reserva
+    );
+    setReservas(novasReservas);
+    salvarReservas(novasReservas);
+  }
+
   function removerReserva(id) {
     const confirmar = window.confirm('Deseja realmente remover esta reserva?');
     if (!confirmar) return;
@@ -24,6 +48,14 @@ export default function App() {
     const novasReservas = reservas.filter((reserva) => reserva.id !== id);
     setReservas(novasReservas);
     salvarReservas(novasReservas);
+  }
+
+  function vagasParaEdicao(id) {
+    const reservaAtual = reservas.find((reserva) => String(reserva.id) === String(id));
+    const reservasSemAtual = reservas.filter((reserva) => String(reserva.id) !== String(id));
+    const vagasLivres = listarVagasDisponiveis(reservasSemAtual);
+    // A vaga atual também deve aparecer como opção durante a edição.
+    return reservaAtual ? [...vagasLivres, Number(reservaAtual.vaga)].sort((a, b) => a - b) : vagasLivres;
   }
 
   const dadosParaCadastro = {
@@ -41,6 +73,14 @@ export default function App() {
           <Route path="/disponiveis" element={<VagasDisponiveis vagas={vagasDisponiveis} />} />
           <Route path="/cadastro" element={
             <CadastroReserva vagas={vagasDisponiveis} salvar={dadosParaCadastro} />
+          } />
+          <Route path="/editar/:id" element={
+            <EditarReservaRoute
+              reservas={reservas}
+              vagasParaEdicao={vagasParaEdicao}
+              editar={atualizarReserva}
+              salvar={dadosParaCadastro}
+            />
           } />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
